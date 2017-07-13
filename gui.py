@@ -3,12 +3,17 @@ import Image, ImageTk
 
 #TODO move
 import pymouse as pm
+import pykeyboard as pk
 import pyscreenshot as ImageGrab
 
 from ast import literal_eval
 
+from random import randint
+
 import time
 import probe
+import dscan
+import overview
 
 class MainFrame(tk.Tk):
     def __init__(self):
@@ -18,6 +23,10 @@ class MainFrame(tk.Tk):
         self.mouse = pm.PyMouse()
 
         self.probe = probe.Probe()
+        self.dscan = dscan.Dscan()
+        self.overview = overview.Overview()
+
+        self.hitDscanVar = tk.IntVar()
 
         # Overview
         self.overviewWindowLine = EveWindowLine(self,"Overview")
@@ -28,10 +37,18 @@ class MainFrame(tk.Tk):
 
         self.grabScreenCb()
 
+        # Hit Dscan
+        self.hitDscanCheckbutton = tk.Checkbutton(self, text="Hit Dscan", command=self.hitDscanCb, variable = self.hitDscanVar)
+        self.hitDscanCheckbutton.pack()
+
         # Mouse position
         self.mousePositionVar = tk.StringVar()
         self.mousePositionLabel = tk.Label(self,textvariable=self.mousePositionVar)
         self.mousePositionLabel.pack()
+
+        self.k = pk.PyKeyboard()
+
+        self.protocol("WM_DELETE_WINDOW", self.onClosing)
 
         self.update()
 
@@ -51,10 +68,12 @@ class MainFrame(tk.Tk):
 
         # Crop, compute and display the overview
         pilImage = self.cropScreen(self.overviewWindowLine)
+        pilImage = self.overview.compute(pilImage)
         self.displayScreen(self.overviewWindowLine, pilImage)
 
         # Crop, compute and display the dscan
         pilImage = self.cropScreen(self.dscanWindowLine)
+        pilImage = self.dscan.compute(pilImage)
         self.displayScreen(self.dscanWindowLine, pilImage)
 
         # Crop, compute and display the probe window
@@ -78,6 +97,25 @@ class MainFrame(tk.Tk):
         # Update the image in the window if it's open
         if (eveWindowLine.windowOpen):
             eveWindowLine.win.update(pilImage)
+
+    def onClosing(self):
+#        print("Closing MainFrame")
+        with open("settings.txt","w") as f: 
+            f.write(self.overviewWindowLine.saveSettings())
+            f.write(self.dscanWindowLine.saveSettings())
+            f.write(self.probeWindowLine.saveSettings())
+        self.destroy()
+
+    def hitDscanCb(self):
+        if self.hitDscanVar.get():
+            self.hitDscan()
+
+    def hitDscan(self):
+        print("Hitting Dscan")
+        self.k.tap_key('v')
+        if self.hitDscanVar.get():
+            delay=randint(1000, 3000)
+            self.after(delay,self.hitDscan)
 
 class SubFrame(tk.Toplevel):
     def __init__(self,root,title="SubFrame"):
@@ -134,8 +172,15 @@ class EveWindowLine:
         self.stopPositionEntry = tk.Entry(self.frame, textvariable=self.stopPositionVar, width=9)
         self.stopPositionEntry.pack(in_=self.frame, side=tk.LEFT)
 
-        self.startPositionEntry.insert(0,"860,120")
-        self.stopPositionEntry.insert(0,"1200,550")
+        with open("settings.txt") as f: 
+            for line in f:
+                if self.title in line:
+                    args=line.split()
+#                    print args[1]
+#                    print args[2]
+                    self.startPositionEntry.insert(0,args[1])
+                    self.stopPositionEntry.insert(0,args[2])
+
 
         self.displayButton = tk.Button(self.frame, text="Display", command=self.imageFrame)
         self.displayButton.pack(in_=self.frame, side=tk.LEFT)
@@ -153,3 +198,12 @@ class EveWindowLine:
             self.windowOpen = 0
             self.displayButton.config(text="Display")
 
+    def saveSettings(self):
+        s = ""
+        s += self.title
+        s += " "
+        s += self.startPositionEntry.get()
+        s += " "
+        s += self.stopPositionEntry.get()
+        s += "\n"
+        return s
