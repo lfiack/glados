@@ -14,6 +14,7 @@ import time
 import probe
 import dscan
 import overview
+import logreader
 
 class MainFrame(tk.Tk):
     def __init__(self):
@@ -25,6 +26,7 @@ class MainFrame(tk.Tk):
         self.probe = probe.Probe()
         self.dscan = dscan.Dscan()
         self.overview = overview.Overview()
+        self.logreader = logreader.LogReader()
 
         self.hitDscanVar = tk.IntVar()
 
@@ -35,7 +37,7 @@ class MainFrame(tk.Tk):
         # Probe
         self.probeWindowLine = EveWindowLine(self,"Probe")
 
-        self.grabScreenCb()
+        self.readEveClientCb()
 
         # Hit Dscan
         self.hitDscanCheckbutton = tk.Checkbutton(self, text="Hit Dscan", command=self.hitDscanCb, variable = self.hitDscanVar)
@@ -46,8 +48,10 @@ class MainFrame(tk.Tk):
         self.mousePositionLabel = tk.Label(self,textvariable=self.mousePositionVar)
         self.mousePositionLabel.pack()
 
+        # Keyboard
         self.k = pk.PyKeyboard()
 
+        # Catching application close
         self.protocol("WM_DELETE_WINDOW", self.onClosing)
 
         self.update()
@@ -57,25 +61,49 @@ class MainFrame(tk.Tk):
         self.mousePositionVar.set("Cursor position: {}".format(self.mouse.position()))
         self.after(10,self.update)
 
-    def grabScreenCb(self):
+    # That's the main loop
+    def readEveClientCb(self):
         # Call the function in 1sec
-        self.after(1000, self.grabScreenCb)
+        self.after(1000, self.readEveClientCb)
+
+        print "====================="
+        print "New Step"
+        print "====================="
 #        print("Taking screens")
         start = time.time()
+
+        # Read the logs
+        loop = True
+        while loop:
+            loop,s=self.logreader.read()
+            if s:
+                print "---------------------"
+                print "Log"
+                print "---------------------"
+                print s
 
         # Grab the entire screen
         self.pilImage=ImageGrab.grab()
 
+        print "---------------------"
+        print "Overview"
+        print "---------------------"
         # Crop, compute and display the overview
         pilImage = self.cropScreen(self.overviewWindowLine)
         pilImage = self.overview.compute(pilImage)
         self.displayScreen(self.overviewWindowLine, pilImage)
 
+        print "---------------------"
+        print "dscan"
+        print "---------------------"
         # Crop, compute and display the dscan
         pilImage = self.cropScreen(self.dscanWindowLine)
         pilImage = self.dscan.compute(pilImage)
         self.displayScreen(self.dscanWindowLine, pilImage)
 
+        print "---------------------"
+        print "probe"
+        print "---------------------"
         # Crop, compute and display the probe window
         pilImage = self.cropScreen(self.probeWindowLine)
         pilImage = self.probe.compute(pilImage)

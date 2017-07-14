@@ -15,18 +15,28 @@ class Overview:
         print("Init Overview")
         self.stationTemplate = cv2.imread("data/overview_station.png")
         self.accGateTemplate = cv2.imread("data/overview_acc_gate.png")
+        self.buttonTemplate = cv2.imread("data/overview_button.png")
+        self.npcFrigateTemplate = cv2.imread("data/overview_npc_frigate.png")
 
     def compute(self,im):
 #        im = self.keepColor(im)
         cvImage = np.array(im)
         self.stations = vision.findTemplate(cvImage,self.stationTemplate)
         self.accGates = vision.findTemplate(cvImage,self.accGateTemplate)
+        self.buttons = vision.findTemplate(cvImage,self.buttonTemplate)
+        self.npcFrigates = vision.findTemplate(cvImage,self.npcFrigateTemplate)
         for pt in self.stations:  # Switch collumns and rows
             print ("Station in " + str(pt[0]) + "," + str(pt[1]))
             cv2.rectangle(cvImage, pt, (pt[0] + 2, pt[1] + 2), (255, 0, 0), 2)
         for pt in self.accGates:  # Switch collumns and rows
             print ("Acceleration Gate in " + str(pt[0]) + "," + str(pt[1]))
             cv2.rectangle(cvImage, pt, (pt[0] + 2, pt[1] + 2), (0, 255, 0), 2)
+        for pt in self.buttons:  # Switch collumns and rows
+            print ("Button in " + str(pt[0]) + "," + str(pt[1]))
+            cv2.rectangle(cvImage, pt, (pt[0] + 2, pt[1] + 2), (0, 0, 255), 2)
+        for pt in self.npcFrigates:  # Switch collumns and rows
+            print ("NPC Frigate in " + str(pt[0]) + "," + str(pt[1]))
+            cv2.rectangle(cvImage, pt, (pt[0] + 2, pt[1] + 2), (255, 0, 255), 2)
 
         im = Image.fromarray(cvImage)
         return im

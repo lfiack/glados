@@ -31,7 +31,7 @@ class Dscan:
             cv2.rectangle(cvImage, pt, (pt[0] + 2, pt[1] + 2), (0, 255, 0), 2)
         for pt in self.destroyers:  # Switch collumns and rows
             print ("Destroyer in " + str(pt[0]) + "," + str(pt[1]))
-            cv2.rectangle(cvImage, pt, (pt[0] + 2, pt[1] + 2), (0, 255, 0), 2)
+            cv2.rectangle(cvImage, pt, (pt[0] + 2, pt[1] + 2), (0, 0, 255), 2)
 
         im = Image.fromarray(cvImage)
         return im
