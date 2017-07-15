@@ -4,17 +4,14 @@ import Image, ImageTk
 #TODO move
 import pymouse as pm
 import pykeyboard as pk
-import pyscreenshot as ImageGrab
 
 from ast import literal_eval
 
 from random import randint
 
 import time
-import probe
-import dscan
-import overview
-import logreader
+import evestate
+#import logreader
 
 class MainFrame(tk.Tk):
     def __init__(self):
@@ -23,19 +20,30 @@ class MainFrame(tk.Tk):
 
         self.mouse = pm.PyMouse()
 
-        self.probe = probe.Probe()
-        self.dscan = dscan.Dscan()
-        self.overview = overview.Overview()
-        self.logreader = logreader.LogReader()
+        self.evestate = evestate.EveState()
 
         self.hitDscanVar = tk.IntVar()
 
         # Overview
         self.overviewWindowLine = EveWindowLine(self,"Overview")
+        startPos=literal_eval(self.overviewWindowLine.startPositionEntry.get())
+        endPos=literal_eval(self.overviewWindowLine.endPositionEntry.get())
+        self.evestate.addEveWindow(evestate.EveWindow("Overview",startPos,endPos))
         # Dscan
         self.dscanWindowLine = EveWindowLine(self,"Dscan")
+        startPos=literal_eval(self.dscanWindowLine.startPositionEntry.get())
+        endPos=literal_eval(self.dscanWindowLine.endPositionEntry.get())
+        self.evestate.addEveWindow(evestate.EveWindow("Dscan",startPos,endPos))
         # Probe
         self.probeWindowLine = EveWindowLine(self,"Probe")
+        startPos=literal_eval(self.probeWindowLine.startPositionEntry.get())
+        endPos=literal_eval(self.probeWindowLine.endPositionEntry.get())
+        self.evestate.addEveWindow(evestate.EveWindow("Probe",startPos,endPos))
+        # Item
+        self.itemWindowLine = EveWindowLine(self,"Item")
+        startPos=literal_eval(self.itemWindowLine.startPositionEntry.get())
+        endPos=literal_eval(self.itemWindowLine.endPositionEntry.get())
+        self.evestate.addEveWindow(evestate.EveWindow("Item",startPos,endPos))
 
         self.readEveClientCb()
 
@@ -72,54 +80,22 @@ class MainFrame(tk.Tk):
 #        print("Taking screens")
         start = time.time()
 
-        # Read the logs
-        loop = True
-        while loop:
-            loop,s=self.logreader.read()
-            if s:
-                print "---------------------"
-                print "Log"
-                print "---------------------"
-                print s
+        self.evestate.compute()
 
-        # Grab the entire screen
-        self.pilImage=ImageGrab.grab()
-
-        print "---------------------"
-        print "Overview"
-        print "---------------------"
-        # Crop, compute and display the overview
-        pilImage = self.cropScreen(self.overviewWindowLine)
-        pilImage = self.overview.compute(pilImage)
-        self.displayScreen(self.overviewWindowLine, pilImage)
-
-        print "---------------------"
-        print "dscan"
-        print "---------------------"
-        # Crop, compute and display the dscan
-        pilImage = self.cropScreen(self.dscanWindowLine)
-        pilImage = self.dscan.compute(pilImage)
-        self.displayScreen(self.dscanWindowLine, pilImage)
-
-        print "---------------------"
-        print "probe"
-        print "---------------------"
-        # Crop, compute and display the probe window
-        pilImage = self.cropScreen(self.probeWindowLine)
-        pilImage = self.probe.compute(pilImage)
-        self.displayScreen(self.probeWindowLine, pilImage)
+        for w in self.evestate.eveWindowList:
+            if w.name == "Overview":
+                self.displayScreen(self.overviewWindowLine, w.pilImage)
+            elif w.name == "Dscan":
+                self.displayScreen(self.dscanWindowLine, w.pilImage)
+            elif w.name == "Probe":
+                self.displayScreen(self.probeWindowLine, w.pilImage)
+            elif w.name == "Item":
+                self.displayScreen(self.itemWindowLine, w.pilImage)
 
         end = time.time()
         print(end - start)
 
-    def cropScreen(self,eveWindowLine):
-        # Read the Coordinates of the screenshot from the corresponding Entry
-        posStart=literal_eval(eveWindowLine.startPositionEntry.get())
-        posStop=literal_eval(eveWindowLine.stopPositionEntry.get())
-#        print(str(posStart))
-#        print(str(posStop))
-        area = (posStart[0],posStart[1],posStop[0],posStop[1])
-        return self.pilImage.crop(area)
+        self.evestate.display()
 
     def displayScreen(self,eveWindowLine,pilImage):
         # Update the image in the window if it's open
@@ -132,6 +108,7 @@ class MainFrame(tk.Tk):
             f.write(self.overviewWindowLine.saveSettings())
             f.write(self.dscanWindowLine.saveSettings())
             f.write(self.probeWindowLine.saveSettings())
+            f.write(self.itemWindowLine.saveSettings())
         self.destroy()
 
     def hitDscanCb(self):
@@ -196,9 +173,9 @@ class EveWindowLine:
         self.startPositionVar = tk.StringVar()
         self.startPositionEntry = tk.Entry(self.frame, textvariable=self.startPositionVar, width=9)
         self.startPositionEntry.pack(in_=self.frame, side=tk.LEFT)
-        self.stopPositionVar = tk.StringVar()
-        self.stopPositionEntry = tk.Entry(self.frame, textvariable=self.stopPositionVar, width=9)
-        self.stopPositionEntry.pack(in_=self.frame, side=tk.LEFT)
+        self.endPositionVar = tk.StringVar()
+        self.endPositionEntry = tk.Entry(self.frame, textvariable=self.endPositionVar, width=9)
+        self.endPositionEntry.pack(in_=self.frame, side=tk.LEFT)
 
         with open("settings.txt") as f: 
             for line in f:
@@ -207,7 +184,7 @@ class EveWindowLine:
 #                    print args[1]
 #                    print args[2]
                     self.startPositionEntry.insert(0,args[1])
-                    self.stopPositionEntry.insert(0,args[2])
+                    self.endPositionEntry.insert(0,args[2])
 
 
         self.displayButton = tk.Button(self.frame, text="Display", command=self.imageFrame)
@@ -232,6 +209,6 @@ class EveWindowLine:
         s += " "
         s += self.startPositionEntry.get()
         s += " "
-        s += self.stopPositionEntry.get()
+        s += self.endPositionEntry.get()
         s += "\n"
         return s
