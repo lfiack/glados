@@ -24,11 +24,9 @@ class EveState():
         self.logsList = []
         self.logreader = logreader.LogReader()
         # TODO color codes
-#        self.hostileColor = (150,50,50)
-        self.hostileColor = (48,10,36)
-#        self.allyColor = (50,50,150)
-        self.allyColor = (48,10,36)
-        self.colorTolerance = 8
+        self.hostileColor = (100,20,20)
+        self.allyColor = (51,128,235)
+        self.colorTolerance = 20
         self.hostile = False
         self.ally = False
 

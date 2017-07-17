@@ -1,0 +1,49 @@
+digraph finite_state_machine {
+    rankdir=LR;
+    size="8,5"
+
+/* Nodes definition */
+    node [shape = doublecircle, label="Init", fontsize=10] Init;
+    node [shape = circle, label="Undocking", fontsize=10] Undocking;
+    node [shape = circle, label="Undocked", fontsize=10] Undocked;
+    node [shape = circle, label="Warp to\nUngated\nPlex", fontsize=10] Warp_to_Ungated_Plex;
+	node [shape = circle, label="Warping\nto\nUngated\nPlex", fontsize=10] Warping_to_Ungated_Plex;
+	node [shape = circle, label="Landed\nin\nUngated\nPlex", fontsize=10] Landed_in_Ungated_Plex;
+
+    node [shape = circle, label="Warp to\nGated\nPlex", fontsize=10] Warp_to_Gated_Plex;
+    node [shape = circle, label="Warping\nto\nGated\nPlex", fontsize=10] Warping_to_Gated_Plex;
+	node [shape = circle, label="Landed\nin\nGated\nPlex", fontsize=10] Landed_in_Gated_Plex;
+    node [shape = circle, label="Take\nGated\nPlex", fontsize=10] Take_Gated_plex;
+
+    node [shape = circle, label="Align\nStation", fontsize=10] Align_Station;
+
+    node [shape = circle, label="Dock", fontsize=10] Dock;
+    node [shape = circle, label="Warping\nto\nStation", fontsize=10] Warping_to_Station;
+    node [shape = circle, label="Waiting", fontsize=10] Waiting;
+	
+
+/* Transition definition */
+    Init					-> Undocking;
+	Undocking				-> Undocked 				[ label = "Station", fontsize=10 ]
+	Undocked				-> Warp_to_Ungated_Plex		[ label = "Ungated Plex", fontsize=10 ]
+	Warp_to_Ungated_Plex	-> Warping_to_Ungated_Plex	[ label = "Command Sent", fontsize=10 ]
+	Warping_to_Ungated_Plex	-> Landed_in_Ungated_Plex	[ label = "Station Dockable", fontsize=10 ]
+	Landed_in_Ungated_Plex	-> Undocked					[ label = "Plex completed", fontsize=10 ]
+
+	Landed_in_Ungated_Plex	-> Align_Station			[ label = "DScan", fontsize=10 ]
+	Align_Station			-> Dock						[ label = "Hostile", fontsize=10 ]
+	Align_Station			-> Landed_in_Ungated_Plex	[ label = "!DScan", fontsize=10 ]
+
+	Landed_in_Ungated_Plex	-> Dock						[ label = "Hostile", fontsize=10 ]
+	Dock					-> Warping_to_Station		[ label = "Command Sent", fontsize=10 ]
+	Warping_to_Station		-> Waiting					[ label = "Docked", fontsize=10 ]
+	Waiting					-> Init						[ label = "Timer elapsed", fontsize=10 ]
+
+	Undocked				-> Warp_to_Gated_Plex		[ label = "!Ungated Plex\n&\nGated Plex", fontsize=10 ]
+	Warp_to_Gated_Plex		-> Warping_to_Gated_Plex	[ label = "Command Sent", fontsize=10 ]
+	Warping_to_Gated_Plex	-> Landed_in_Gated_Plex		[ label = "Station Dockable", fontsize=10 ]
+	Landed_in_Gated_Plex	-> Take_Gated_plex			[ label = "!Hostile", fontsize=10 ]
+	Take_Gated_plex			-> Warping_to_Ungated_Plex	[ label = "Command Sent", fontsize=10 ]
+	
+	Landed_in_Gated_Plex	-> Dock						[ label = "Hostile", fontsize=10 ]
+}
