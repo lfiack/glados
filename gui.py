@@ -11,7 +11,6 @@ from random import randint
 
 import time
 import evestate
-#import logreader
 
 class MainFrame(tk.Tk):
     def __init__(self):
@@ -28,24 +27,28 @@ class MainFrame(tk.Tk):
         self.overviewWindowLine = EveWindowLine(self,"Overview")
         startPos=literal_eval(self.overviewWindowLine.startPositionEntry.get())
         endPos=literal_eval(self.overviewWindowLine.endPositionEntry.get())
-        self.evestate.addEveWindow(evestate.EveWindow("Overview",startPos,endPos))
+        self.evestate.addEveWindow(evestate.EveWindow("Overview",self.overviewWindowLine))
         # Dscan
         self.dscanWindowLine = EveWindowLine(self,"Dscan")
         startPos=literal_eval(self.dscanWindowLine.startPositionEntry.get())
         endPos=literal_eval(self.dscanWindowLine.endPositionEntry.get())
-        self.evestate.addEveWindow(evestate.EveWindow("Dscan",startPos,endPos))
+        self.evestate.addEveWindow(evestate.EveWindow("Dscan",self.dscanWindowLine))
         # Probe
         self.probeWindowLine = EveWindowLine(self,"Probe")
         startPos=literal_eval(self.probeWindowLine.startPositionEntry.get())
         endPos=literal_eval(self.probeWindowLine.endPositionEntry.get())
-        self.evestate.addEveWindow(evestate.EveWindow("Probe",startPos,endPos))
+        self.evestate.addEveWindow(evestate.EveWindow("Probe",self.probeWindowLine))
         # Item
         self.itemWindowLine = EveWindowLine(self,"Item")
         startPos=literal_eval(self.itemWindowLine.startPositionEntry.get())
         endPos=literal_eval(self.itemWindowLine.endPositionEntry.get())
-        self.evestate.addEveWindow(evestate.EveWindow("Item",startPos,endPos))
+        self.evestate.addEveWindow(evestate.EveWindow("Item",self.itemWindowLine))
 
         self.readEveClientCb()
+
+        # Update position
+        self.updateButtonPos = tk.Button(self, text="Update Position", command=self.updatePos)
+        self.updateButtonPos.pack()
 
         # Hit Dscan
         self.hitDscanCheckbutton = tk.Checkbutton(self, text="Hit Dscan", command=self.hitDscanCb, variable = self.hitDscanVar)
@@ -122,6 +125,10 @@ class MainFrame(tk.Tk):
             delay=randint(1000, 3000)
             self.after(delay,self.hitDscan)
 
+    def updatePos(self):
+        for w in self.evestate.eveWindowList:
+            w.updatePos()
+
 class SubFrame(tk.Toplevel):
     def __init__(self,root,title="SubFrame"):
         tk.Toplevel.__init__(self)
@@ -185,7 +192,6 @@ class EveWindowLine:
 #                    print args[2]
                     self.startPositionEntry.insert(0,args[1])
                     self.endPositionEntry.insert(0,args[2])
-
 
         self.displayButton = tk.Button(self.frame, text="Display", command=self.imageFrame)
         self.displayButton.pack(in_=self.frame, side=tk.LEFT)

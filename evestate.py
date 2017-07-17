@@ -7,11 +7,13 @@ import pyscreenshot as ImageGrab
 import os
 import operator
 import re
+from ast import literal_eval
 
 import cv2  
 import numpy as np
 
 import logreader
+import gui
 
 import vision
 
@@ -21,6 +23,14 @@ class EveState():
         self.eveWindowList = []
         self.logsList = []
         self.logreader = logreader.LogReader()
+        # TODO color codes
+#        self.hostileColor = (150,50,50)
+        self.hostileColor = (48,10,36)
+#        self.allyColor = (50,50,150)
+        self.allyColor = (48,10,36)
+        self.colorTolerance = 8
+        self.hostile = False
+        self.ally = False
 
     def addEveWindow(self, eveWindow):
         self.eveWindowList.append(eveWindow)
@@ -53,11 +63,24 @@ class EveState():
                     cv2.rectangle(cvImage, pt, (pt[0] + 2, pt[1] + 2), (255, 0, 0), 2)
                     w.addObject(EveObject(t[0],pt,res[(pt[1],pt[0])]))
 
+            if w.name == "Overview":
+                # Take the first column
+                firstCol=cvImage[0:cvImage.shape[0],0:1]
+
+                self.hostile = vision.isColorPresent(im=firstCol,colorCode=self.hostileColor,tolerance=self.colorTolerance)
+                self.ally = vision.isColorPresent(im=firstCol,colorCode=self.allyColor,tolerance=self.colorTolerance)
+
             w.pilImage = Image.fromarray(cvImage)
 
     def display(self):
         print "------------------------"
         print "Logs"
+
+        if self.hostile:
+            print "Hostile present"
+        if self.ally:
+            print "Ally present"
+
         for l in self.logsList:
             print l
         for w in self.eveWindowList:
@@ -67,10 +90,11 @@ class EveState():
                 print o.name + " in " + str(o.relativePos) + "(rel) ; " + str(tuple(map(operator.add, o.relativePos, w.startPos))) + "(abs) (" + str(o.res) + ")"
 
 class EveWindow():
-    def __init__(self, name, startPos, endPos):
+    def __init__(self, name, eveWindowLine):
         self.name = name
-        self.startPos = startPos
-        self.endPos = endPos
+        self.eveWindowLine = eveWindowLine
+        self.startPos=literal_eval(self.eveWindowLine.startPositionEntry.get())
+        self.endPos=literal_eval(self.eveWindowLine.endPositionEntry.get())
         self.eveObjectList = []
         self.pilImage = Image.new("RGB",tuple(map(operator.sub, self.endPos, self.startPos)),"black")
         self.path = os.environ['PWD'] + "/data/"
@@ -87,9 +111,9 @@ class EveWindow():
 #                print "winName=" + winName
 #                print "pathname=" + pathname
 
-    def setPos(self, startPos, endPos):
-        self.startPos = startPos
-        self.endPos = endPos
+    def updatePos(self):
+        self.startPos=literal_eval(self.eveWindowLine.startPositionEntry.get())
+        self.endPos=literal_eval(self.eveWindowLine.endPositionEntry.get())
 
     def addObject(self,eveObject):
         self.eveObjectList.append(eveObject)
