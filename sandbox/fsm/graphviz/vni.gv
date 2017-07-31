@@ -1,0 +1,60 @@
+/* Bot doing Serpentis Forsaken Rally Point in an Cap-stable active VNI
+ * Starts undocked with all modules running
+ */
+
+digraph finite_state_machine {
+    rankdir=LR;
+    size="8,5"
+
+/* Nodes definition */
+    node [shape = doublecircle, label="Init", fontsize=10] Init;
+	// Find "Forsaken Rally Point"
+	// Click "Warp"
+	// Left click "Forsaken Rally Point"
+	// Click "Ignore Result"
+    node [shape = circle, label="Warp\nto\nanom", fontsize=10] Warp_to_anom;
+	// Find "Core"
+    node [shape = circle, label="Launch\ndrones", fontsize=10] Launch_drones;
+	// Left click "Drones in Bay"
+	// Click "Launch Drones"
+	// Find "Idle"
+	// Loop if false
+    node [shape = circle, label="Wait\nwreck", fontsize=10] Wait_wreck;
+	// Click "misc."
+	// Find "Core"
+	// Click "Core"
+	// Click "Orbit"
+	// Click "main"
+    node [shape = circle, label="Farming", fontsize=10] Farming;
+	// Find "Core"
+    node [shape = circle, label="Scoop\ndrones", fontsize=10] Scoop_drones;
+	// Find "Returning"
+
+    node [shape = circle, label="Align", fontsize=10] Align;
+	// Align and scoop drones
+	// Wait drones
+    node [shape = circle, label="Warp\noff", fontsize=10] Warp_off;
+	// Right click in space
+	// Move to "safe"
+	// Left click "Warp to Location Within 0 m"
+    node [shape = circle, label="Safe", fontsize=10] Safe;
+	// Wait 'til Hostile is gone
+    node [shape = circle, label="Wait", fontsize=10] Wait;
+	// Wait a few minutes
+	
+/* Transition definition */
+    Init					-> Warp_to_anom		[ label = "Anom", fontsize=10 ]
+	Warp_to_anom			-> Init				[ label = "Occupied", fontsize=10 ]
+	Warp_to_anom			-> Launch_drones	[ label = "Core\n!Occupied", fontsize=10 ]
+	Launch_drones			-> Wait_wreck		[ label = "Idle", fontsize=10 ]
+	Wait_wreck				-> Farming			[ label = "Core", fontsize=10 ]
+	Farming					-> Scoop_drones		[ label = "!Core", fontsize=10 ]
+	Scoop_drones			-> Init				[ label = "!Returning", fontsize=10 ]
+
+	Wait_wreck				-> Align			[ label = "Hostile", fontsize=10 ]
+	Farming					-> Align			[ label = "Hostile", fontsize=10 ]
+	Align					-> Warp_off			[ label = "Drones in", fontsize=10 ]
+	Warp_off				-> Safe				[ label = "Delay", fontsize=10 ]
+	Safe					-> Wait				[ label = "!Hostile", fontsize=10 ]
+	Wait					-> Init				[ label = "Delay", fontsize=10 ]
+}

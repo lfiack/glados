@@ -1,6 +1,8 @@
-SRC=fw_dplex.gv
-PNG=fw_dplex.png
-SVG=fw_dplex.svg
+TARGET=vni
+
+SRC=$(TARGET).gv
+PNG=$(TARGET).png
+SVG=$(TARGET).svg
 
 all: $(PNG) $(SVG)
 
