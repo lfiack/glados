@@ -11,36 +11,42 @@ class MainWindow(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
         self.title("GladOS")
+        self.minsize(400,500)
 
         self.mouse = pm.PyMouse()
 
-        # Eve screen capture
-        self.screenFrame = tk.Frame()
-        self.screenFrame.pack()
+        # Reset state configuration
+        self.resetStateFrame = tk.Frame()
+        self.resetStateFrame.pack()
 
-        self.screenLabel = tk.Label(self.screenFrame,text="Screen")
-        self.screenLabel.pack(in_=self.screenFrame, side=tk.LEFT)
+        self.resetStateLabel = tk.Label(self.resetStateFrame,text="Reset State")
+        self.resetStateLabel.pack(in_=self.resetStateFrame, side=tk.LEFT)
 
-        self.screenStartPositionVar = tk.StringVar()
-        self.screenStartPositionEntry = tk.Entry(self.screenFrame, textvariable=self.screenStartPositionVar, width=9)
-        self.screenStartPositionEntry.pack(in_=self.screenFrame, side=tk.LEFT)
-        self.screenEndPositionVar = tk.StringVar()
-        self.screenEndPositionEntry = tk.Entry(self.screenFrame, textvariable=self.screenEndPositionVar, width=9)
-        self.screenEndPositionEntry.pack(in_=self.screenFrame, side=tk.LEFT)
+        self.resetStateEntry = tk.Entry(self.resetStateFrame, width=15)
+        self.resetStateEntry.insert(0, "Init")
+        self.resetStateEntry.pack()
 
-        with open("settings.txt") as f: 
-            for line in f:
-                if "screen" in line:
-                    args=line.split()
-#                    print args[1]
-#                    print args[2]
-                    self.screenStartPositionEntry.insert(0,args[1])
-                    self.screenEndPositionEntry.insert(0,args[2])
+        # Control Buttons
+        self.buttonsFrame = tk.Frame()
+        self.buttonsFrame.pack()
 
         self.screenWindowOpen = False
+        self.botStarted = False
 
-        self.screenDisplayButton = tk.Button(self.screenFrame, text="Display", command=self.imageFrame)
-        self.screenDisplayButton.pack(in_=self.screenFrame, side=tk.LEFT)
+        self.startButton = tk.Button(self.buttonsFrame, text="Start", command=self.startBot)
+        self.startButton.pack(in_=self.buttonsFrame, side=tk.LEFT)
+
+        self.resetButton = tk.Button(self.buttonsFrame, text="Reset", command=self.resetBot)
+        self.resetButton.pack(in_=self.buttonsFrame, side=tk.LEFT)
+
+        self.screenDisplayButton = tk.Button(self.buttonsFrame, text="Display", command=self.imageFrame)
+        self.screenDisplayButton.pack(in_=self.buttonsFrame, side=tk.LEFT)
+
+        # Engine text
+        self.engineText = ""
+        self.engineTextVar = tk.StringVar()
+        self.engineTextLabel = tk.Label(self,textvariable=self.engineTextVar,justify=tk.LEFT,bg='white',anchor = tk.NW)
+        self.engineTextLabel.pack(expand=1,fill=tk.BOTH)
 
         # Mouse position
         self.mousePositionVar = tk.StringVar()
@@ -51,18 +57,30 @@ class MainWindow(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.onClosing)
 
 #        self.threadDisplay = threading.Thread(target=self.display)
-        startPos = literal_eval(self.screenStartPositionEntry.get())
-        endPos = literal_eval(self.screenEndPositionEntry.get())
-        self.gladosEngine = gle.GladosEngine(startPos,endPos)
+        self.gladosEngine = gle.GladosEngine(self)
         self.gladosEngine.start()
 
         self.update()
         self.displayCb()
 
     def update(self):
-        #TODO Move m.position
         self.mousePositionVar.set("Cursor position: {}".format(self.mouse.position()))
         self.after(10,self.update)
+
+    def resetText(self):
+        self.engineText = ""
+
+    def addText(self, text):
+        self.engineText += text
+        self.engineText += "\n"
+        self.engineTextVar.set(self.engineText)
+
+    def setText(self, text):
+        self.engineText=text
+        self.engineTextVar.set(self.engineText)
+
+    def logText(self):
+        print self.engineText   # TODO actual log
 
     def imageFrame(self):
         # create child window
@@ -75,6 +93,27 @@ class MainWindow(tk.Tk):
             self.screenWindowOpen = False
             self.screenDisplayButton.config(text="Display")
 
+    def startBot(self):
+        if (self.botStarted):
+            self.setText("Bot stopped")
+            self.botStarted = False
+            self.gladosEngine.stopBot()
+            self.startButton.config(text="Start")
+        else:
+            self.setText("Bot started")
+            self.botStarted = True
+            self.gladosEngine.startBot()
+            self.startButton.config(text="Stop")
+
+    def resetBot(self):
+        if (self.botStarted):
+#            print "Stop bot first"
+            self.setText("Stop bot first")
+        else:
+#            print "Reset bot to " + self.resetStateEntry.get() + " state"
+            self.setText("Reset bot to " + self.resetStateEntry.get() + " state")
+            self.gladosEngine.resetBot(self.resetStateEntry.get())
+
     def displayCb(self):
         # Call the function in 1sec
         self.after(1000, self.displayCb)
@@ -82,18 +121,18 @@ class MainWindow(tk.Tk):
         if self.screenWindowOpen:
             self.screenWindow.update(self.gladosEngine.pilImage)
 
-    def saveScreenSettings(self):
-        s = "screen "
-        s += self.screenStartPositionEntry.get()
-        s += " "
-        s += self.screenEndPositionEntry.get()
-        s += "\n"
-        return s
+#    def saveScreenSettings(self):
+#        s = "screen "
+#        s += self.screenStartPositionEntry.get()
+#        s += " "
+#        s += self.screenEndPositionEntry.get()
+#        s += "\n"
+#        return s
 
     def onClosing(self):
 #        print("Closing MainFrame")
-        with open("settings.txt","w") as f: 
-            f.write(self.saveScreenSettings())
+#        with open("settings.txt","w") as f: 
+#            f.write(self.saveScreenSettings())
 
         self.gladosEngine.stop()
 
