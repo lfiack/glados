@@ -19,6 +19,7 @@ class GladosEngine(threading.Thread):
         self.gui = gui
 
         self.botStarted = False
+        self.anomCounter = 0
 
         self.mouse = PyMouse()
 
@@ -29,11 +30,14 @@ class GladosEngine(threading.Thread):
 
         self.forsaken_rally_point_template = cv2.imread("./data/Forsaken_Rally_Point.png")
         self.core_template = cv2.imread("./data/Core.png")
+        self.mobile_tractor_template = cv2.imread("./data/Mobile_Tractor.png")
+        # TODO Pointed
         self.allied_template = cv2.imread("./data/Allied.png")
         self.neutral_template = cv2.imread("./data/Neutral.png")
         self.hostile_template = cv2.imread("./data/Red.png")
 
-        self.fsm.addState("Init", self.startHandler)
+        self.fsm.addState("Init", self.initHandler)
+        self.fsm.addState("Check anom", self.checkAnomHandler)
         self.fsm.addState("Warping to anom", self.warpingToAnomHandler)
         self.fsm.addState("Launch drones", self.launchDronesHandler)
         self.fsm.addState("Wait wreck", self.waitWreckHandler)
@@ -43,7 +47,6 @@ class GladosEngine(threading.Thread):
         self.fsm.addState("Align", self.alignHandler)
         self.fsm.addState("Warp off", self.warpOffHandler)
         self.fsm.addState("Safe", self.safeHandler)
-        self.fsm.addState("Wait", self.waitHandler)
 
         self.fsm.setStart("Init")
 
@@ -97,7 +100,12 @@ class GladosEngine(threading.Thread):
         else:
             hostile = 0
 
-        return (allied, neutral, hostile)
+        self.gui.addText (str(allied) + " allies, " + str(neutral) + " neutrals, " + str(hostile) + " hostiles")
+
+        if neutral or hostile:
+            return True
+        else:
+            return False
 
     def stop(self):
         self.running = False
@@ -108,17 +116,24 @@ class GladosEngine(threading.Thread):
                 self.gui.resetText()
                 self.gui.addText("=====================")
                 self.gui.addText(time.strftime("%d/%m/%Y - %H:%M:%S"))
+                self.gui.addText("Anomaly counter: " + str(self.anomCounter))
                 self.pilImage=self.fsm.step()
 
                 self.gui.logText()
 
 
-    def startHandler(self):
+    def initHandler(self):
         self.gui.addText("* Init state")
         # Cropping the probe scanner
         image=ImageGrab.grab(bbox=(1410,115,1785,1199))
         cvImage = np.array(image)
         (res,items) = vision.findTemplate(cvImage,self.forsaken_rally_point_template)
+
+        if self.checkLocal():
+            self.gui.addText ("Keep safe")
+            nextState = "Safe"
+            return (nextState,image)
+
         if items:
             pt = items[0]
             cv2.rectangle(cvImage, pt, (pt[0] + 2, pt[1] + 2), (255, 0, 0), 2)
@@ -147,6 +162,20 @@ class GladosEngine(threading.Thread):
         image = Image.fromarray(cvImage)
         return (nextState,image)
 
+    def checkAnomHandler(self):
+        self.gui.addText("* Check anom state")
+        # Cropping the probe scanner
+        image=ImageGrab.grab(bbox=(1410,115,1785,1199))
+        cvImage = np.array(image)
+        (res,items) = vision.findTemplate(cvImage,self.forsaken_rally_point_template)
+        if items:
+            nextState = "Init"
+        else:
+            nextState = "Warp off"
+
+        image = Image.fromarray(cvImage)
+        return (nextState,image)
+
     def warpingToAnomHandler(self):
         self.gui.addText("* Warping to anom state")
         #Cropping the overview
@@ -158,16 +187,35 @@ class GladosEngine(threading.Thread):
         if items:
             self.gui.addText (str(len(items)/2) + " rat(s) found, checking if anom is occupied")
 
+            (res2,items2) = vision.findTemplate(cvImage,self.mobile_tractor_template)
+
+            
             if (vision.isColorPresent(cvImage,(12,31,89),10) == True):
                 self.gui.addText ("Anom occupied, starting again in 12sec")
 
                 time.sleep(12) 
-                nextState = "Init"
-            else:
-                self.gui.addText ("Anom free, sleeping 12sec then launch drones")
+                nextState = "Check anom"
+            elif (items2):
+                self.gui.addText ("MTU found, starting again in 12sec")
 
                 time.sleep(12) 
-                nextState = "Launch drones"
+                nextState = "Check anom"
+            else:
+                self.gui.addText ("Anom seems free, check again")
+
+                time.sleep(1)
+                image=ImageGrab.grab(bbox=(90,460,490,880))
+                cvImage = np.array(image)
+
+                if (vision.isColorPresent(cvImage,(12,31,89),10) == True):
+                    self.gui.addText ("Anom occupied, starting again in 10sec")
+
+                    time.sleep(10) 
+                    nextState = "Check anom"
+                else:
+                    self.gui.addText ("Anom free, sleeping 10sec then launch drones")
+                    time.sleep(10) 
+                    nextState = "Launch drones"
         else:
             self.gui.addText ("No rat yet, staying in Warping to anom state")
             nextState = "Warping to anom"
@@ -179,24 +227,39 @@ class GladosEngine(threading.Thread):
         self.gui.addText("* Launch drones state")
         #Cropping the drones window
         image=ImageGrab.grab(bbox=(95,880,490,1199))
+
+        if self.checkLocal():
+            self.gui.addText ("Time to safe up")
+            nextState = "Align"
+            return (nextState,image)
+
         self.rightClick((140,920))
         time.sleep(1)
         self.leftClick((165,925))
         time.sleep(2)
 
+        self.leftClick((300,435)) # click wreck tab
         nextState = "Wait wreck"
 
         return (nextState,image)
 
     def waitWreckHandler(self):
         self.gui.addText("* Wait wreck state")
-        self.leftClick((300,435)) # click wreck tab
         time.sleep(1)
         #Cropping the overview
         image=ImageGrab.grab(bbox=(90,460,490,880))
 
         cvImage = np.array(image)
         (res,items) = vision.findTemplate(cvImage,self.core_template)
+
+        if self.checkLocal():
+            self.gui.addText ("Time to safe up")
+
+            self.leftClick((175,435)) # click main tab
+            time.sleep(1)
+
+            nextState = "Align"
+            return (nextState,image)
 
         if items:
             pt = items[0]
@@ -213,6 +276,7 @@ class GladosEngine(threading.Thread):
             nextState = "Farming"
         else:
             self.gui.addText ("No wreck yet, staying in Wait wreck state")
+            time.sleep(1)
             nextState = "Wait wreck"
 
         image = Image.fromarray(cvImage)
@@ -229,9 +293,7 @@ class GladosEngine(threading.Thread):
         cvImage = np.array(image)
         (res,items) = vision.findTemplate(cvImage,self.core_template)
 
-        (allied,neutral,hostile)=self.checkLocal()
-        self.gui.addText (str(allied) + " allies, " + str(neutral) + " neutrals, " + str(hostile) + " hostiles")
-        if neutral or hostile:
+        if self.checkLocal():
             self.gui.addText ("Time to safe up")
             nextState = "Align"
             return (nextState,image)
@@ -253,6 +315,7 @@ class GladosEngine(threading.Thread):
                 nextState = "Farming"
             else:
                 self.gui.addText ("No rat anymore, scoop drones")
+                self.anomCounter += 1
                 nextState = "Scoop drones"
 
         image = Image.fromarray(cvImage)
@@ -288,6 +351,8 @@ class GladosEngine(threading.Thread):
         time.sleep(0.5)
         self.leftClick((800,270))
 
+        time.sleep(1)
+
         self.gui.addText("Waiting 20sec")
         time.sleep(20)
 
@@ -305,8 +370,13 @@ class GladosEngine(threading.Thread):
         time.sleep(0.5)
         self.leftClick((800,240))
 
-        self.gui.addText ("Wait 2min")
-        time.sleep(120)
+        #Cancel ignored anoms
+        self.mouse.move(1750,90)
+        time.sleep(2)
+        self.leftClick((1750,120))
+
+        self.gui.addText ("Wait 1min")
+        time.sleep(60)
         nextState = "Safe"
         return (nextState,image)
 
@@ -315,20 +385,13 @@ class GladosEngine(threading.Thread):
         #Cropping the drones window
         image=ImageGrab.grab(bbox=(95,880,490,1199))
 
-        (allied,neutral,hostile)=self.checkLocal()
-        self.gui.addText (str(allied) + " allies, " + str(neutral) + " neutrals, " + str(hostile) + " hostiles")
-        if neutral or hostile:
+        if self.checkLocal():
             self.gui.addText ("Keep safe")
+            time.sleep(1)
             nextState = "Safe"
         else:
-            nextState = "Wait"
+            self.gui.addText ("Waiting 60 seconds")
+            time.sleep(60)
+            nextState = "Init"
 
-        return (nextState,image)
-
-    def waitHandler(self):
-        self.gui.addText("* Wait state")
-        #Cropping the drones window
-        image=ImageGrab.grab(bbox=(95,880,490,1199))
-        time.sleep(600)
-        nextState = "Init"
         return (nextState,image)

@@ -11,7 +11,7 @@ class MainWindow(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
         self.title("GladOS")
-        self.minsize(400,500)
+        self.minsize(350,400)
 
         self.mouse = pm.PyMouse()
 
