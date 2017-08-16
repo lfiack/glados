@@ -47,7 +47,7 @@ class GladosEngine(threading.Thread):
             print "Creating " + path + " file"
             copyfile("./settings.txt", path)
 
-        f=open("settings.txt","r")
+        f=open(path,"r")
         lines=f.readlines()
         for l in lines:
             if l != '\n':
