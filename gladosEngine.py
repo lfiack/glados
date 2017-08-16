@@ -34,7 +34,8 @@ class GladosEngine(threading.Thread):
         # TODO Pointed
         self.allied_template = cv2.imread("./data/Allied.png")
         self.neutral_template = cv2.imread("./data/Neutral.png")
-        self.hostile_template = cv2.imread("./data/Red.png")
+        self.red_template = cv2.imread("./data/Red.png")
+        self.orange_template = cv2.imread("./data/Orange.png")
 
         self.fsm.addState("Init", self.initHandler)
         self.fsm.addState("Check anom", self.checkAnomHandler)
@@ -94,15 +95,21 @@ class GladosEngine(threading.Thread):
         else:
             neutral = 0
 
-        (res,items) = vision.findTemplate(cvImage,self.hostile_template)
+        (res,items) = vision.findTemplate(cvImage,self.red_template)
         if items:
-            hostile = len(items)
+            red = len(items)
         else:
-            hostile = 0
+            red = 0
 
-        self.gui.addText (str(allied) + " allies, " + str(neutral) + " neutrals, " + str(hostile) + " hostiles")
+        (res,items) = vision.findTemplate(cvImage,self.orange_template)
+        if items:
+            orange = len(items)
+        else:
+            orange = 0
 
-        if neutral or hostile:
+        self.gui.addText (str(allied) + " allies, " + str(neutral) + " neutrals, " + str(orange) + " oranges, " + str(red) + " reds")
+
+        if neutral or red:
             return True
         else:
             return False
@@ -120,6 +127,8 @@ class GladosEngine(threading.Thread):
                 self.pilImage=self.fsm.step()
 
                 self.gui.logText()
+            else:
+                time.sleep(1)
 
 
     def initHandler(self):
