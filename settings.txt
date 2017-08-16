@@ -1,1 +1,24 @@
-screen 0,0 1919,1199
+localBBox (1785,65,1919,1199)
+probeBBox (1410,115,1785,1199)
+overviewBBox (90,460,490,880)
+dronesBBox (95,880,490,1199)
+
+warpToAnomOffset (25,10)
+ignoreAnomOffset (25,75)
+
+dronesInBayCoord (140,920)
+launchDronesCoord (165,925)
+dronesInSpaceCoord (140,960)
+scoopDronesCoord (165,1005)
+
+wreckTabCoord (300,435)
+mainTabCoord (175,435)
+orbitCoord (210,375)
+
+rightClickInSpaceCoord (500,100)
+safeCoord (700,240)
+alignSafeCoord (800,270)
+warpSafeCoord (800,240)
+
+ignoredCoord (1750,90)
+clearAllIgnoredCoord (1750,120)

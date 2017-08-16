@@ -4,6 +4,10 @@ import pyscreenshot as ImageGrab
 import cv2  
 import numpy as np
 
+import os.path
+from shutil import copyfile
+from ast import literal_eval
+
 from pymouse import PyMouse
 
 import threading
@@ -23,8 +27,7 @@ class GladosEngine(threading.Thread):
 
         self.mouse = PyMouse()
 
-        self.text = "Blep\nblop"
-        self.text += "toto"
+        self.text = ""
 
         self.fsm = fsm.StateMachine()
 
@@ -37,6 +40,21 @@ class GladosEngine(threading.Thread):
         self.red_template = cv2.imread("./data/Red.png")
         self.orange_template = cv2.imread("./data/Orange.png")
 
+        #Read settings
+        self.settings = {}
+        path=os.environ['HOME'] + "/.glados"
+        if os.path.isfile(path) == False:
+            print "Creating " + path + " file"
+            copyfile("./settings.txt", path)
+
+        f=open("settings.txt","r")
+        lines=f.readlines()
+        for l in lines:
+            if l != '\n':
+                ll = l.split()
+                self.settings[ll[0]] = literal_eval(ll[1])
+                print ll[0] + " " + str(ll[1])
+                
         self.fsm.addState("Init", self.initHandler)
         self.fsm.addState("Check anom", self.checkAnomHandler)
         self.fsm.addState("Warping to anom", self.warpingToAnomHandler)
@@ -80,8 +98,11 @@ class GladosEngine(threading.Thread):
         self.mouse.release(coordinates[0],coordinates[1],button=1)
         time.sleep(0.5)
 
+    def move(self,coordinates):
+        self.mouse.move(coordinates[0],coordinates[1])
+
     def checkLocal(self):
-        image=ImageGrab.grab(bbox=(1785,65,1919,1199))
+        image=ImageGrab.grab(bbox=self.settings["localBBox"])
         cvImage = np.array(image)
         (res,items) = vision.findTemplate(cvImage,self.allied_template)
         if items:
@@ -134,7 +155,8 @@ class GladosEngine(threading.Thread):
     def initHandler(self):
         self.gui.addText("* Init state")
         # Cropping the probe scanner
-        image=ImageGrab.grab(bbox=(1410,115,1785,1199))
+        bbox=self.settings["probeBBox"]
+        image=ImageGrab.grab(bbox=bbox)
         cvImage = np.array(image)
         (res,items) = vision.findTemplate(cvImage,self.forsaken_rally_point_template)
 
@@ -146,18 +168,20 @@ class GladosEngine(threading.Thread):
         if items:
             pt = items[0]
             cv2.rectangle(cvImage, pt, (pt[0] + 2, pt[1] + 2), (255, 0, 0), 2)
-            pt = (pt[0]+1410,pt[1]+115)
+            pt = (pt[0]+bbox[0],pt[1]+bbox[1])
             self.gui.addText ("Forsaken Rally Point in " + str(pt[0]) + "," + str(pt[1]))
 
             # Warping Sequence
             self.rightClick(pt)
             time.sleep (1)
-            self.leftClick((pt[0]+25,pt[1]+10))
+            offset=self.settings["warpToAnomOffset"]
+            self.leftClick((pt[0]+offset[0],pt[1]+offset[1]))
             time.sleep (1)
             # Ignoring anom
             self.rightClick(pt)
             time.sleep (1)
-            self.leftClick((pt[0]+25,pt[1]+75))
+            offset=self.settings["ignoreAnomOffset"]
+            self.leftClick((pt[0]+offset[0],pt[1]+offset[1]))
             time.sleep (1)
 
             self.gui.addText ("Waiting 12sec before checking the overview")
@@ -174,7 +198,7 @@ class GladosEngine(threading.Thread):
     def checkAnomHandler(self):
         self.gui.addText("* Check anom state")
         # Cropping the probe scanner
-        image=ImageGrab.grab(bbox=(1410,115,1785,1199))
+        image=ImageGrab.grab(bbox=self.settings["probeBBox"])
         cvImage = np.array(image)
         (res,items) = vision.findTemplate(cvImage,self.forsaken_rally_point_template)
         if items:
@@ -188,7 +212,7 @@ class GladosEngine(threading.Thread):
     def warpingToAnomHandler(self):
         self.gui.addText("* Warping to anom state")
         #Cropping the overview
-        image=ImageGrab.grab(bbox=(90,460,490,880))
+        image=ImageGrab.grab(bbox=self.settings["overviewBBox"])
 
         cvImage = np.array(image)
         (res,items) = vision.findTemplate(cvImage,self.core_template)
@@ -213,7 +237,7 @@ class GladosEngine(threading.Thread):
                 self.gui.addText ("Anom seems free, check again")
 
                 time.sleep(1)
-                image=ImageGrab.grab(bbox=(90,460,490,880))
+                image=ImageGrab.grab(bbox=self.settings["overviewBBox"])
                 cvImage = np.array(image)
 
                 if (vision.isColorPresent(cvImage,(12,31,89),10) == True):
@@ -235,19 +259,19 @@ class GladosEngine(threading.Thread):
     def launchDronesHandler(self):
         self.gui.addText("* Launch drones state")
         #Cropping the drones window
-        image=ImageGrab.grab(bbox=(95,880,490,1199))
+        image=ImageGrab.grab(bbox=self.settings["dronesBBox"])
 
         if self.checkLocal():
             self.gui.addText ("Time to safe up")
             nextState = "Align"
             return (nextState,image)
 
-        self.rightClick((140,920))
+        self.rightClick(self.settings["dronesInBayCoord"])
         time.sleep(1)
-        self.leftClick((165,925))
+        self.leftClick(self.settings["launchDronesCoord"])
         time.sleep(2)
 
-        self.leftClick((300,435)) # click wreck tab
+        self.leftClick(self.settings["wreckTabCoord"]) # click wreck tab
         nextState = "Wait wreck"
 
         return (nextState,image)
@@ -256,7 +280,8 @@ class GladosEngine(threading.Thread):
         self.gui.addText("* Wait wreck state")
         time.sleep(1)
         #Cropping the overview
-        image=ImageGrab.grab(bbox=(90,460,490,880))
+        bbox=self.settings["overviewBBox"]
+        image=ImageGrab.grab(bbox=bbox)
 
         cvImage = np.array(image)
         (res,items) = vision.findTemplate(cvImage,self.core_template)
@@ -264,7 +289,7 @@ class GladosEngine(threading.Thread):
         if self.checkLocal():
             self.gui.addText ("Time to safe up")
 
-            self.leftClick((175,435)) # click main tab
+            self.leftClick(self.settings["mainTabCoord"]) # click main tab
             time.sleep(1)
 
             nextState = "Align"
@@ -273,13 +298,13 @@ class GladosEngine(threading.Thread):
         if items:
             pt = items[0]
             cv2.rectangle(cvImage, pt, (pt[0] + 2, pt[1] + 2), (255, 0, 0), 2)
-            pt = (pt[0]+90,pt[1]+460)
+            pt = (pt[0]+bbox[0],pt[1]+bbox[1])
             self.gui.addText ("Wreck found in (" + str(pt[0]) + "," + str(pt[1]) + ")")
             self.leftClick(pt) # click the wreck
             time.sleep(2)
-            self.leftClick((210,375)) # click orbit
+            self.leftClick(self.settings["orbitCoord"]) # click orbit
             time.sleep(1)
-            self.leftClick((175,435)) # click main tab
+            self.leftClick(self.settings["mainTabCoord"]) # click main tab
             time.sleep(1)
 
             nextState = "Farming"
@@ -297,7 +322,7 @@ class GladosEngine(threading.Thread):
 
         
         #Cropping the overview
-        image=ImageGrab.grab(bbox=(90,460,490,880))
+        image=ImageGrab.grab(bbox=self.settings["overviewBBox"])
 
         cvImage = np.array(image)
         (res,items) = vision.findTemplate(cvImage,self.core_template)
@@ -315,7 +340,7 @@ class GladosEngine(threading.Thread):
         else:
             self.gui.addText ("No rat anymore, check again in 5sec")
             time.sleep(5)
-            image=ImageGrab.grab(bbox=(90,460,490,880))
+            image=ImageGrab.grab(bbox=self.settings["overviewBBox"])
             cvImage = np.array(image)
             (res,items) = vision.findTemplate(cvImage,self.core_template)
 
@@ -334,10 +359,10 @@ class GladosEngine(threading.Thread):
         self.gui.addText("* Scoop drones state")
 
         #Cropping the drones window
-        image=ImageGrab.grab(bbox=(95,880,490,1199))
-        self.rightClick((140,960))
+        image=ImageGrab.grab(bbox=self.settings["dronesBBox"])
+        self.rightClick(self.settings["dronesInSpaceCoord"])
         time.sleep(1)
-        self.leftClick((165,1005))
+        self.leftClick(self.settings["scoopDronesCoord"])
 
         self.gui.addText("Waiting 30sec")
         time.sleep(30)
@@ -349,16 +374,16 @@ class GladosEngine(threading.Thread):
     def alignHandler(self):
         self.gui.addText("* Align state")
         #Cropping the drones window
-        image=ImageGrab.grab(bbox=(95,880,490,1199))
-        self.rightClick((140,960))
+        image=ImageGrab.grab(bbox=self.settings["dronesBBox"])
+        self.rightClick(self.settings["dronesInSpaceCoord"])
         time.sleep(1)
-        self.leftClick((165,1005))
+        self.leftClick(self.settings["scoopDronesCoord"])
 
-        self.rightClick((500,100))
+        self.rightClick(self.settings["rightClickInSpaceCoord"])
         time.sleep(0.5)
-        self.mouse.move(700,240)
+        self.move(self.settings["safeCoord"])
         time.sleep(0.5)
-        self.leftClick((800,270))
+        self.leftClick(self.settings["alignSafeCoord"])
 
         time.sleep(1)
 
@@ -371,18 +396,18 @@ class GladosEngine(threading.Thread):
     def warpOffHandler(self):
         self.gui.addText("* Warp off state")
         #Cropping the drones window
-        image=ImageGrab.grab(bbox=(95,880,490,1199))
+        image=ImageGrab.grab(bbox=self.settings["dronesBBox"])
 
-        self.rightClick((500,100))
+        self.rightClick(self.settings["rightClickInSpaceCoord"])
         time.sleep(0.5)
-        self.mouse.move(700,240)
+        self.move(self.settings["safeCoord"])
         time.sleep(0.5)
-        self.leftClick((800,240))
+        self.leftClick(self.settings["warpSafeCoord"])
 
         #Cancel ignored anoms
-        self.mouse.move(1750,90)
+        self.move(self.settings["ignoredCoord"])
         time.sleep(2)
-        self.leftClick((1750,120))
+        self.leftClick(self.settings["clearAllIgnoredCoord"])
 
         self.gui.addText ("Wait 1min")
         time.sleep(60)
@@ -392,7 +417,7 @@ class GladosEngine(threading.Thread):
     def safeHandler(self):
         self.gui.addText("* Safe state")
         #Cropping the drones window
-        image=ImageGrab.grab(bbox=(95,880,490,1199))
+        image=ImageGrab.grab(bbox=self.settings["dronesBBox"])
 
         if self.checkLocal():
             self.gui.addText ("Keep safe")
